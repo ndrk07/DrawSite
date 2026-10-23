@@ -3,11 +3,11 @@
     <head>
         <meta charset="utf-8">
         <title>Start page</title>
-        <link rel="stylesheet" href="css/startstyle.css">
+        <link rel="stylesheet" href="../static/css/startstyle.css">
     </head>
 
     <body>
-        <form action="" method="POST">
+        <form action="postsignup" method="POST">
             <div>
                 <label for="name">Name</label>
                 <input type="text" name="name" required>
@@ -20,6 +20,8 @@
                 <label for="pw_ag">Repeat Password</label>
                 <input type="password" name="pw_ag" required>
             </div>
+            <input type="submit" value="Sign Up" /><br>
+            <a href="signin">Sign in</a>
         </form>
     </body>
 </html>
