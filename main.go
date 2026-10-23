@@ -2,13 +2,15 @@ package main
 
 import (
 	"fmt"
-	"io"
+	"html/template"
 	"log"
 	"net/http"
 )
 
 func main() {
 	mux := http.NewServeMux()
+
+	// mux.Handle("/templates/css/", http.StripPrefix("/templates/css/", http.FileServer(http.Dir("./templates/css/"))))
 
 	mux.HandleFunc("/", startHttp)
 
@@ -18,7 +20,14 @@ func main() {
 }
 
 func startHttp(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.ParseFiles("templates/start.html")
+	if err != nil {
+		http.Error(w, "Template error", http.StatusInternalServerError)
+	}
+
 	fmt.Println("user in start page")
 
-	io.WriteString(w, "Hello this is start page")
+	if err = tmpl.Execute(w, nil); err != nil {
+		http.Error(w, "Render error", http.StatusInternalServerError)
+	}
 }
