@@ -1,20 +1,16 @@
 package main
 
 import (
+	"drawserver/internal/app/apiserver"
 	"log"
-	"net/http"
 )
 
 func main() {
-	mux := http.NewServeMux()
-
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-
-	mux.HandleFunc("/signup", signUpPage)
-	mux.HandleFunc("/postsignup", getSignUpData)
-	mux.HandleFunc("/signin", signInPage)
-
-	if err := http.ListenAndServe(":8080", mux); err != nil {
+	s := apiserver.New()
+	if err := s.Start(); err != nil {
 		log.Fatal(err)
 	}
+
+	// mux.HandleFunc("/postsignup", getSignUpData)
+
 }
