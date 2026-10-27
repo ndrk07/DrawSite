@@ -5,12 +5,13 @@ import (
 	"log"
 )
 
+var config = &apiserver.Config{
+	BindAddr:    ":8080",
+	DatabaseURL: "user=postgres password=an101978 host=localhost dbname=drawsite sslmode=disable",
+}
+
 func main() {
-	s := apiserver.New()
-	if err := s.Start(); err != nil {
+	if err := apiserver.Start(config); err != nil {
 		log.Fatal(err)
 	}
-
-	// mux.HandleFunc("/postsignup", getSignUpData)
-
 }

@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 )
 
@@ -11,8 +11,6 @@ func SignInPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Template error", http.StatusInternalServerError)
 	}
-
-	fmt.Println("user in sign in page")
 
 	if err = tmpl.Execute(w, nil); err != nil {
 		http.Error(w, "Render error", http.StatusInternalServerError)
@@ -25,26 +23,16 @@ func SignUpPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Template error", http.StatusInternalServerError)
 	}
 
-	fmt.Println("user in sign up page")
-
 	if err = tmpl.Execute(w, nil); err != nil {
 		http.Error(w, "Render error", http.StatusInternalServerError)
 	}
 }
 
-// func handleUsersCreate() http.HandlerFunc {
-// 	type request struct {
-// 		Login    string
-// 		Password string
-// 	}
+func HandleMainMenu(w http.ResponseWriter, r *http.Request) {
+	io.WriteString(w, "succesfully registration")
+}
 
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		req := &request{}
-// 		if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-// 			log.Fatal(err)
-// 			return
-// 		}
-
-// 		u := &model.User{}
-// 	}
-// }
+func ErrorSignUp(w http.ResponseWriter, r *http.Request, err error) {
+	tmpl, _ := template.ParseFiles("templates/signup.html")
+	tmpl.Execute(w, err)
+}
