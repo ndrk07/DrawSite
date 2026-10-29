@@ -7,7 +7,7 @@ import (
 
 var config = &apiserver.Config{
 	BindAddr:    ":8080",
-	DatabaseURL: "user=postgres password=an101978 host=localhost dbname=drawsite sslmode=disable",
+	DatabaseURL: "",
 }
 
 func main() {
