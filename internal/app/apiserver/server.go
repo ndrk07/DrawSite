@@ -5,6 +5,8 @@ import (
 	"drawserver/internal/app/model"
 	"drawserver/internal/app/store"
 	"errors"
+	"html/template"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -33,13 +35,17 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) configurateRouter() {
-	s.router.HandleFunc("/signup", handlers.SignUpPage)
 	s.router.HandleFunc("/signin", handlers.SignInPage)
-	s.router.HandleFunc("/postsignup", s.handleUsersCreate())
+	s.router.HandleFunc("/signup", s.handleUsersCreate())
 	s.router.HandleFunc("/", handlers.HandleMainMenu)
 }
 
 func (s *server) handleUsersCreate() http.HandlerFunc {
+	tmpl, err := template.ParseFiles("templates/signup.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	type request struct {
 		Name           string
 		Password       string
@@ -47,26 +53,32 @@ func (s *server) handleUsersCreate() http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		req := &request{
-			Name:           r.FormValue("name"),
-			Password:       r.FormValue("pw"),
-			RepeatPassword: r.FormValue("pw_ag"),
-		}
+		if r.Method == http.MethodPost {
+			req := &request{
+				Name:           r.FormValue("name"),
+				Password:       r.FormValue("pw"),
+				RepeatPassword: r.FormValue("pw_ag"),
+			}
 
-		if req.Password != req.RepeatPassword {
-			handlers.ErrorSignUp(w, r, errors.New("Password must be the same"))
-			return
-		}
-		u := &model.User{
-			Name:     req.Name,
-			Password: req.Password,
-		}
+			if req.Password != req.RepeatPassword {
+				handlers.ErrorSignUp(w, r, tmpl, errors.New("Password must be the same"))
+				return
+			}
+			u := &model.User{
+				Name:     req.Name,
+				Password: req.Password,
+			}
 
-		if err := s.store.User().Create(u); err != nil {
-			handlers.ErrorSignUp(w, r, err)
-			return
+			if err := s.store.User().Create(u); err != nil {
+				handlers.ErrorSignUp(w, r, tmpl, err)
+				return
+			}
+			u.Sanitize()
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+		} else {
+			if err = tmpl.Execute(w, nil); err != nil {
+				http.Error(w, "Render error", http.StatusInternalServerError)
+			}
 		}
-		u.Sanitize()
-		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
