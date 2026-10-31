@@ -4,6 +4,7 @@ import (
 	"drawserver/internal/app/handlers"
 	"drawserver/internal/app/model"
 	"drawserver/internal/app/store"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -53,7 +54,7 @@ func (s *server) handleUsersCreate() http.HandlerFunc {
 		}
 
 		if req.Password != req.RepeatPassword {
-			handlers.ErrorSignUp(w, r, "Password must be the same")
+			handlers.ErrorSignUp(w, r, errors.New("Password must be the same"))
 			return
 		}
 		u := &model.User{
@@ -62,7 +63,7 @@ func (s *server) handleUsersCreate() http.HandlerFunc {
 		}
 
 		if err := s.store.User().Create(u); err != nil {
-
+			handlers.ErrorSignUp(w, r, err)
 			return
 		}
 		u.Sanitize()
