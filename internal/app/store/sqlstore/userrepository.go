@@ -39,3 +39,19 @@ func (r *UserRepository) FindByName(name string) (*model.User, error) {
 
 	return u, nil
 }
+
+func (r *UserRepository) Find(id int) (*model.User, error) {
+	u := &model.User{}
+	if err := r.store.db.QueryRow(
+		"SELECT id, name, encrypted_password FROM users WHERE id = $1",
+		id,
+	).Scan(
+		&u.Id,
+		&u.Name,
+		&u.EncryptedPassword,
+	); err != nil {
+		return nil, err
+	}
+
+	return u, nil
+}

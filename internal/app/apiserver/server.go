@@ -1,11 +1,13 @@
 package apiserver
 
 import (
+	"context"
 	"drawserver/internal/app/handlers"
 	"drawserver/internal/app/model"
 	"drawserver/internal/app/store"
 	"errors"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 
@@ -13,12 +15,16 @@ import (
 )
 
 const (
-	sessionName = "gopher"
+	sessionName        = "gopher"
+	ctxKeyUser  ctxKey = iota
 )
 
 var (
 	errIncorrectNameOrPassword = errors.New("incorrect name or password")
+	errNotAuthenticated        = errors.New("not authenticated")
 )
+
+type ctxKey int8
 
 type server struct {
 	router       *http.ServeMux
@@ -43,12 +49,47 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) configurateRouter() {
-	// s.router.HandleFunc("/signin", handlers.SignInPage)
 	s.router.HandleFunc("/signup", s.handleUsersCreate())
 	s.router.HandleFunc("/signin", s.handleSessionsCreate())
 	s.router.HandleFunc("/", handlers.HandleMainMenu)
+
+	private := http.HandlerFunc(s.handlerWhoAmI())
+	s.router.Handle("/private/whoami/", s.authenticateUser(private))
+
 }
 
+func (s *server) authenticateUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		session, err := s.sessionStore.Get(r, sessionName)
+		if err != nil {
+			http.Error(w, "Error Server Read Session", http.StatusInternalServerError)
+			return
+		}
+
+		id, ok := session.Values["user_id"]
+		if !ok {
+			log.Fatal(errNotAuthenticated)
+			return
+		}
+
+		u, err := s.store.User().Find(id.(int))
+		if err != nil {
+			log.Fatal(errNotAuthenticated)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKeyUser, u)))
+	})
+}
+
+// handler who am i
+func (s *server) handlerWhoAmI() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u := r.Context().Value(ctxKeyUser).(*model.User)
+		io.WriteString(w, u.Name)
+	}
+}
+
+// handle for create user
 func (s *server) handleUsersCreate() http.HandlerFunc {
 	tmpl, err := template.ParseFiles("templates/signup.html")
 	if err != nil {
@@ -92,6 +133,7 @@ func (s *server) handleUsersCreate() http.HandlerFunc {
 	}
 }
 
+// handle for create session
 func (s *server) handleSessionsCreate() http.HandlerFunc {
 	tmpl, err := template.ParseFiles("templates/signin.html")
 	if err != nil {
