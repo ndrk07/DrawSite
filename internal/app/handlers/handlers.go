@@ -6,21 +6,10 @@ import (
 	"net/http"
 )
 
-func SignInPage(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("templates/signin.html")
-	if err != nil {
-		http.Error(w, "Template error", http.StatusInternalServerError)
-	}
-
-	if err = tmpl.Execute(w, nil); err != nil {
-		http.Error(w, "Render error", http.StatusInternalServerError)
-	}
-}
-
 func HandleMainMenu(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "succesfully registration")
 }
 
-func ErrorSignUp(w http.ResponseWriter, r *http.Request, tmpl *template.Template, err error) {
+func ErrorOutputTmpl(w http.ResponseWriter, r *http.Request, tmpl *template.Template, err error) {
 	tmpl.Execute(w, err)
 }

@@ -7,22 +7,30 @@ import (
 	"errors"
 	"html/template"
 	"log"
-	"log/slog"
 	"net/http"
-	"os"
+
+	"github.com/gorilla/sessions"
+)
+
+const (
+	sessionName = "gopher"
+)
+
+var (
+	errIncorrectNameOrPassword = errors.New("incorrect name or password")
 )
 
 type server struct {
-	router *http.ServeMux
-	logger *slog.Logger
-	store  store.Store
+	router       *http.ServeMux
+	store        store.Store
+	sessionStore sessions.Store
 }
 
-func newServer(store store.Store) *server {
+func newServer(store store.Store, sessionStore sessions.Store) *server {
 	s := &server{
-		router: http.NewServeMux(),
-		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
-		store:  store,
+		router:       http.NewServeMux(),
+		store:        store,
+		sessionStore: sessionStore,
 	}
 
 	s.configurateRouter()
@@ -35,8 +43,9 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) configurateRouter() {
-	s.router.HandleFunc("/signin", handlers.SignInPage)
+	// s.router.HandleFunc("/signin", handlers.SignInPage)
 	s.router.HandleFunc("/signup", s.handleUsersCreate())
+	s.router.HandleFunc("/signin", s.handleSessionsCreate())
 	s.router.HandleFunc("/", handlers.HandleMainMenu)
 }
 
@@ -61,7 +70,7 @@ func (s *server) handleUsersCreate() http.HandlerFunc {
 			}
 
 			if req.Password != req.RepeatPassword {
-				handlers.ErrorSignUp(w, r, tmpl, errors.New("Password must be the same"))
+				handlers.ErrorOutputTmpl(w, r, tmpl, errors.New("Password must be the same"))
 				return
 			}
 			u := &model.User{
@@ -70,11 +79,57 @@ func (s *server) handleUsersCreate() http.HandlerFunc {
 			}
 
 			if err := s.store.User().Create(u); err != nil {
-				handlers.ErrorSignUp(w, r, tmpl, err)
+				handlers.ErrorOutputTmpl(w, r, tmpl, err)
 				return
 			}
 			u.Sanitize()
 			http.Redirect(w, r, "/", http.StatusSeeOther)
+		} else {
+			if err = tmpl.Execute(w, nil); err != nil {
+				http.Error(w, "Render error", http.StatusInternalServerError)
+			}
+		}
+	}
+}
+
+func (s *server) handleSessionsCreate() http.HandlerFunc {
+	tmpl, err := template.ParseFiles("templates/signin.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	type request struct {
+		Name     string
+		Password string
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			req := &request{
+				Name:     r.FormValue("name"),
+				Password: r.FormValue("pw"),
+			}
+
+			u, err := s.store.User().FindByName(req.Name)
+			if err != nil || !u.ComparePassword(req.Password) {
+				handlers.ErrorOutputTmpl(w, r, tmpl, errIncorrectNameOrPassword)
+				return
+			}
+
+			session, err := s.sessionStore.Get(r, sessionName)
+			if err != nil {
+				http.Error(w, "Session Error", http.StatusInternalServerError)
+				return
+			}
+
+			session.Values["user_id"] = u.Id
+			if err := s.sessionStore.Save(r, w, session); err != nil {
+				http.Error(w, "Session Save Error", http.StatusInternalServerError)
+				return
+			}
+
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+
 		} else {
 			if err = tmpl.Execute(w, nil); err != nil {
 				http.Error(w, "Render error", http.StatusInternalServerError)
