@@ -52,6 +52,8 @@ func (s *server) configurateRouter() {
 	s.router.HandleFunc("/signup", s.handleUsersCreate())
 	s.router.HandleFunc("/signin", s.handleSessionsCreate())
 	s.router.HandleFunc("/", s.handleMainPage())
+
+	s.router.HandleFunc("/logout", s.handleLogout())
 }
 
 // middleware for check autorization
@@ -220,5 +222,25 @@ func (s *server) handleSessionsCreate() http.HandlerFunc {
 				return
 			}
 		}
+	}
+}
+
+func (s *server) handleLogout() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, err := s.sessionStore.Get(r, sessionName)
+		if err != nil {
+			http.Error(w, "Session Error", http.StatusInternalServerError)
+			return
+		}
+
+		delete(session.Values, "user_id")
+		session.Options.MaxAge = -1
+
+		if err := s.sessionStore.Save(r, w, session); err != nil {
+			http.Error(w, "Session Save Error", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
