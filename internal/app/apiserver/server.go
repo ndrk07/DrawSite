@@ -51,11 +51,29 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *server) configurateRouter() {
 	s.router.HandleFunc("/signup", s.handleUsersCreate())
 	s.router.HandleFunc("/signin", s.handleSessionsCreate())
-	s.router.HandleFunc("/", handlers.HandleMainMenu)
+	s.router.HandleFunc("/", s.handleMainPage())
+}
 
-	private := http.HandlerFunc(s.handlerWhoAmI())
-	s.router.Handle("/private/whoami/", s.authenticateUser(private))
+// middleware for check autorization
+func (s *server) middlewareAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var currentUser any = 0
+		session, err := s.sessionStore.Get(r, sessionName)
+		if err != nil {
+			http.Error(w, "Error Server Read Session", http.StatusInternalServerError)
+			return
+		}
 
+		id, ok := session.Values["user_id"]
+		if ok {
+			u, err := s.store.User().Find(id.(int))
+			if err == nil {
+				currentUser = u
+			}
+		}
+
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKeyUser, currentUser)))
+	})
 }
 
 func (s *server) authenticateUser(next http.Handler) http.Handler {
@@ -86,6 +104,29 @@ func (s *server) handlerWhoAmI() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u := r.Context().Value(ctxKeyUser).(*model.User)
 		io.WriteString(w, u.Name)
+	}
+}
+
+// handle for main page
+func (s *server) handleMainPage() http.HandlerFunc {
+	tmpl, err := template.ParseFiles("templates/mainpage.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		u, ok := r.Context().Value(ctxKeyUser).(*model.User)
+
+		data := map[string]any{
+			"IsAuthenticated": ok,
+			"User":            u,
+		}
+
+		if err := tmpl.Execute(w, data); err != nil {
+			http.Error(w, "Render error", http.StatusInternalServerError)
+			return
+		}
+
 	}
 }
 
@@ -128,6 +169,7 @@ func (s *server) handleUsersCreate() http.HandlerFunc {
 		} else {
 			if err = tmpl.Execute(w, nil); err != nil {
 				http.Error(w, "Render error", http.StatusInternalServerError)
+				return
 			}
 		}
 	}
@@ -175,6 +217,7 @@ func (s *server) handleSessionsCreate() http.HandlerFunc {
 		} else {
 			if err = tmpl.Execute(w, nil); err != nil {
 				http.Error(w, "Render error", http.StatusInternalServerError)
+				return
 			}
 		}
 	}

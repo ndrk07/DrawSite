@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>main page</title>
+    <link rel="stylesheet" href="../static/css/startstyle.css">
+</head>
+<body>
+    <header>
+        <nav class="nav-links">
+            {{ if .IsAuthenticated }}
+                <span class="user-menu">
+                    <strong>{{ .User.Name }}</strong>
+                    <a href="/logout" class="logout-btn">Exit Profile</a>
+                </span>
+            {{ else }}
+                <span class="user-menu">
+                    <a href="/signin">Sign In</a>
+                    <a href="/signup">Sign Up</a>
+                </span>
+            {{ end }}
+        </nav>
+    </header>
+</body>
+</html>

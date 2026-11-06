@@ -21,7 +21,9 @@ func Start(config *Config) error {
 	srv := newServer(store, sessionStore)
 	srv.router.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
-	return http.ListenAndServe(config.BindAddr, srv)
+	globalServer := srv.middlewareAuth(srv.router)
+
+	return http.ListenAndServe(config.BindAddr, globalServer)
 }
 
 func NewDB(databaseURL string) (*sql.DB, error) {
